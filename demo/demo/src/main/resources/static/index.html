@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOHEMA</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .objective-input {
+            margin-top: 10px;
+        }
+
+        .objectives-container {
+            margin-top: 10px;
+        }
+
+        .countdown-timer {
+            margin-top: 10px;
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>MOHEMA</h1>
+    <h3>Tasks But Easier</h3>
+</header>
+
+<main>
+    <div class="progress-bar">
+        <div id="overall-progress" class="progress" style="width: 0;"></div>
+    </div>
+    <ul id="taskList"></ul>
+</main>
+
+<footer>
+    <button onclick="showAddTaskModal()">+</button>
+
+    <div id="addTaskModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAddTaskModal()">&times;</span>
+            <label for="newTask">Task:</label>
+            <input type="text" id="newTask" placeholder="Task">
+
+            <label for="newObjective">Objectives:</label>
+            <input type="text" id="newObjective" placeholder="Objectives">
+
+            <button onclick="addObjectiveInput()">+ Objectives</button>
+            <div id="objectivesContainer" class="objectives-container"></div>
+
+            <label for="startTime">Start Time:</label>
+            <input type="time" id="startTime" name="startTime">
+
+            <label for="endTime">End Time:</label>
+            <input type="time" id="endTime" name="endTime">
+
+            <p id="countdownTimer" class="countdown-timer"></p>
+            <button onclick="addTask()">Add Task</button>
+        </div>
+    </div>
+</footer>
+
+<script>
+    let countdownInterval;
+
+    function showAddTaskModal() {
+        const addTaskModal = document.getElementById('addTaskModal');
+        addTaskModal.style.display = 'block';
+    }
+
+    function hideAddTaskModal() {
+        const addTaskModal = document.getElementById('addTaskModal');
+        addTaskModal.style.display = 'none';
+        clearInterval(countdownInterval);
+    }
+
+    function addTask() {
+        const taskText = document.getElementById('newTask').value;
+        const objectives = document.getElementById('newObjective').value;
+        const startTime = document.getElementById('startTime').value;
+        const endTime = document.getElementById('endTime').value;
+
+        if (taskText.trim() !== '' && startTime !== '' && endTime !== '') {
+            const taskList = document.getElementById('taskList');
+            const taskItem = document.createElement('li');
+            taskItem.className = 'task';
+            taskItem.innerHTML = `
+                <input type="checkbox" onchange="toggleTask(this, '${endTime}')">
+                <span>${taskText}</span>
+                <div class="progress-bar-task">
+                    <div class="progress-task" style="width: 0;"></div>
+                </div>
+                <p>Objectives: ${objectives}</p>
+                <p>Time: ${startTime} - ${endTime}</p>
+                <button onclick="editTask(this.parentNode)">Edit</button>
+                <button onclick="removeTask(this.parentNode)">Remove</button>
+            `;
+            taskList.appendChild(taskItem);
+            document.getElementById('newTask').value = '';
+            document.getElementById('newObjective').value = '';
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+
+            hideAddTaskModal();
+            updateOverallProgress();
+        }
+    }
+
+    function addObjectiveInput() {
+        const objectivesContainer = document.getElementById('objectivesContainer');
+        const newObjectiveInput = document.createElement('input');
+        newObjectiveInput.setAttribute('type', 'text');
+        newObjectiveInput.setAttribute('class', 'objective-input');
+        newObjectiveInput.setAttribute('placeholder', 'Additional Objectives');
+        objectivesContainer.appendChild(newObjectiveInput);
+    }
+
+    function toggleTask(checkbox, endTime) {
+        const countdownTimer = document.getElementById('countdownTimer');
+        if (checkbox.checked) {
+            startCountdown(endTime, countdownTimer);
+        } else {
+            stopCountdown();
+        }
+        updateOverallProgress();
+    }
+
+    function startCountdown(endTime, countdownTimer) {
+        const endTimeDate = new Date();
+        const [endHours, endMinutes] = endTime.split(':');
+        endTimeDate.setHours(parseInt(endHours, 10));
+        endTimeDate.setMinutes(parseInt(endMinutes, 10));
+        endTimeDate.setSeconds(0);
+
+        countdownInterval = setInterval(() => {
+            const now = new Date();
+            const timeDifference = endTimeDate - now;
+
+            if (timeDifference <= 0) {
+                clearInterval(countdownInterval);
+                countdownTimer.innerHTML = 'x';
+            } else {
+                const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+                countdownTimer.innerHTML = `${minutes}:${seconds}`;
+            }
+        }, 1000);
+    }
+
+    function stopCountdown() {
+        clearInterval(countdownInterval);
+    }
+
+    function removeTask(taskItem) {
+        const confirmation = confirm('Do you want to remove this task?');
+        if (confirmation) {
+            taskItem.parentNode.removeChild(taskItem);
+            stopCountdown();
+            updateOverallProgress();
+        }
+    }
+
+    function editTask(taskItem) {
+        const spanElement = taskItem.querySelector('span');
+        const objectivesElement = taskItem.querySelector('p');
+        const editTaskText = prompt('Edit Task:', spanElement.innerText);
+        const editObjectives = prompt('Edit Objectives:', objectivesElement.innerText.replace('Objectives: ', ''));
+
+        if (editTaskText !== null) {
+            spanElement.innerText = editTaskText;
+            objectivesElement.innerText = `Objectives: ${editObjectives}`;
+        }
+
+        updateOverallProgress();
+    }
+
+    function updateOverallProgress() {
+        const taskItems = document.querySelectorAll('.task input[type="checkbox"]');
+        const completedTasks = Array.from(taskItems).filter(checkbox => checkbox.Dchecked).length;
+        const totalTasks = taskItems.length;
+        const overallProgress = document.getElementById('overall-progress');
+        const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+        overallProgress.style.width = `${percentage}%`;
+    }
+</script>
+
+</body>
+</html>
